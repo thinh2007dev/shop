@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/contact - Lấy thông tin liên hệ
 export async function GET() {
   const { data, error } = await supabase.from("contact").select("*").limit(1).single();

@@ -2,12 +2,18 @@
 
 import { useEffect, useState } from "react";
 import { FALLBACK_CONTACT, fetchContact } from "@/lib/products";
+import { useAuth } from "@/lib/auth-context";
+import DepositModal from "./DepositModal";
 
 export default function Header() {
   const [contact, setContact] = useState(FALLBACK_CONTACT);
+  const { user, logout, refreshBalance } = useAuth();
+  const [showDeposit, setShowDeposit] = useState(false);
 
   useEffect(() => {
     fetchContact().then(setContact);
+    refreshBalance();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
@@ -53,10 +59,22 @@ export default function Header() {
             <div className="icon-btn" title="Giỏ hàng">
               🛒<span className="cnt">0</span>
             </div>
-            <button className="login">Đăng nhập</button>
+            <span className="user-hi">
+              👋 {user?.display_name || user?.username}
+            </span>
+            <span className="balance">
+              💳 {(user?.balance || 0).toLocaleString("vi-VN")}đ
+            </span>
+            <button className="deposit-btn" onClick={() => setShowDeposit(true)}>
+              + Nạp tiền
+            </button>
+            <button className="login" onClick={logout}>Đăng xuất</button>
           </div>
         </div>
       </nav>
+
+      {showDeposit && <DepositModal onClose={() => setShowDeposit(false)} />}
+
 
       <div className="wrap">
         <div className="banner">

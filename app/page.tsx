@@ -4,10 +4,11 @@ import ProductGrid from "@/components/ProductGrid";
 import Trust from "@/components/Trust";
 import RecentFeed from "@/components/RecentFeed";
 import Footer from "@/components/Footer";
+import AuthGate from "@/components/AuthGate";
 
 export default function Home() {
   return (
-    <>
+    <AuthGate>
       <Header />
 
       <div className="wrap">
@@ -35,6 +36,6 @@ export default function Home() {
       </div>
 
       <Footer />
-    </>
+    </AuthGate>
   );
 }

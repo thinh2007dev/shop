@@ -38,10 +38,83 @@ CREATE TABLE IF NOT EXISTS contact (
   hours TEXT NOT NULL
 );
 
+-- Customers table (accounts)
+CREATE TABLE IF NOT EXISTS customers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  display_name TEXT,
+  balance BIGINT NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- Deposits table (lệnh nạp tiền qua SePay)
+CREATE TABLE IF NOT EXISTS deposits (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  code TEXT NOT NULL UNIQUE,           -- nội dung chuyển khoản duy nhất (để match)
+  amount BIGINT,                       -- số tiền dự kiến (có thể null nếu nạp tự do)
+  received_amount BIGINT,              -- số tiền thực nhận từ webhook
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'expired')),
+  sepay_tx_id TEXT,                    -- id giao dịch bên SePay (chống trùng)
+  created_at TIMESTAMPTZ DEFAULT now(),
+  completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_deposits_code ON deposits(code);
+CREATE INDEX IF NOT EXISTS idx_deposits_customer ON deposits(customer_id);
+
+-- ============================================
+-- RPC: hoàn tất nạp tiền (atomic)
+-- Match theo code, chống nạp trùng bằng sepay_tx_id + status.
+-- Trả về customer_id nếu cộng thành công, NULL nếu không match / đã xử lý.
+-- ============================================
+CREATE OR REPLACE FUNCTION complete_deposit(
+  p_code TEXT,
+  p_amount BIGINT,
+  p_tx_id TEXT
+) RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_dep deposits%ROWTYPE;
+BEGIN
+  -- Khoá dòng deposit đang pending khớp code
+  SELECT * INTO v_dep
+  FROM deposits
+  WHERE code = p_code AND status = 'pending'
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN NULL;  -- không có lệnh chờ khớp
+  END IF;
+
+  -- Chống xử lý trùng cùng 1 giao dịch SePay
+  IF EXISTS (SELECT 1 FROM deposits WHERE sepay_tx_id = p_tx_id) THEN
+    RETURN NULL;
+  END IF;
+
+  UPDATE deposits
+  SET status = 'completed',
+      received_amount = p_amount,
+      sepay_tx_id = p_tx_id,
+      completed_at = now()
+  WHERE id = v_dep.id;
+
+  UPDATE customers
+  SET balance = balance + p_amount
+  WHERE id = v_dep.customer_id;
+
+  RETURN v_dep.customer_id;
+END;
+$$;
+
 -- Enable Row Level Security
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact ENABLE ROW LEVEL SECURITY;
+ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 
 -- Public read access for products
 CREATE POLICY "Products are viewable by everyone"
