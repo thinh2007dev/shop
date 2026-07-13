@@ -8,13 +8,15 @@ CREATE TABLE IF NOT EXISTS products (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   name TEXT NOT NULL,
   emoji TEXT NOT NULL DEFAULT '📦',
+  image_url TEXT,
   unit TEXT NOT NULL DEFAULT '1',
+
   price_bank TEXT NOT NULL,
   price_card TEXT NOT NULL,
   stock INTEGER NOT NULL DEFAULT 0,
   sold INTEGER NOT NULL DEFAULT 0,
   hot BOOLEAN NOT NULL DEFAULT false,
-  category TEXT NOT NULL CHECK (category IN ('Seed', 'Gear', 'Item hiếm')),
+  category TEXT NOT NULL CHECK (category IN ('Seed', 'Gear', 'Pet')),
   rarity TEXT NOT NULL CHECK (rarity IN ('common', 'rare', 'epic', 'legendary')),
   created_at TIMESTAMPTZ DEFAULT now()
 );
@@ -23,7 +25,9 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   customer_name TEXT NOT NULL,
+  customer_id UUID REFERENCES customers(id) ON DELETE SET NULL,
   product_id UUID REFERENCES products(id) ON DELETE SET NULL,
+
   quantity INTEGER NOT NULL DEFAULT 1,
   payment_method TEXT NOT NULL CHECK (payment_method IN ('bank', 'card')),
   total_price TEXT NOT NULL,
@@ -117,21 +121,25 @@ ALTER TABLE contact ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
 
 -- Public read access for products
+DROP POLICY IF EXISTS "Products are viewable by everyone" ON products;
 CREATE POLICY "Products are viewable by everyone"
   ON products FOR SELECT
   USING (true);
 
 -- Public read access for contact
+DROP POLICY IF EXISTS "Contact is viewable by everyone" ON contact;
 CREATE POLICY "Contact is viewable by everyone"
   ON contact FOR SELECT
   USING (true);
 
 -- Public can create orders
+DROP POLICY IF EXISTS "Anyone can create orders" ON orders;
 CREATE POLICY "Anyone can create orders"
   ON orders FOR INSERT
   WITH CHECK (true);
 
 -- Public can read recent orders (for feed)
+DROP POLICY IF EXISTS "Orders are viewable by everyone" ON orders;
 CREATE POLICY "Orders are viewable by everyone"
   ON orders FOR SELECT
   USING (true);
@@ -139,14 +147,53 @@ CREATE POLICY "Orders are viewable by everyone"
 -- ============================================
 -- SEED DATA - Initial products
 -- ============================================
-INSERT INTO products (name, emoji, unit, price_bank, price_card, stock, sold, hot, category, rarity) VALUES
-  ('Dragon Seed',        '🔥', '1',  '9K',  '20K', 99, 412, true,  'Seed',      'legendary'),
-  ('Hypyo Moon x10',     '🌱', '10', '30K', '40K', 57, 230, false, 'Seed',      'epic'),
-  ('Moon Bloom x10',     '🪷', '10', '30K', '40K', 63, 198, false, 'Item hiếm', 'epic'),
-  ('Ghost Pepper x10',   '🌶️', '10', '50K', '70K', 28, 145, true,  'Item hiếm', 'legendary'),
-  ('Super Watering x40', '🫖', '40', '10K', '20K', 80, 305, false, 'Gear',      'rare'),
-  ('Super Sprinkler x30','⛲', '30', '10K', '20K', 74, 277, false, 'Gear',      'rare');
+INSERT INTO products (name, emoji, unit, price_bank, price_card, stock, sold, hot, category, rarity)
+SELECT * FROM (VALUES
+  -- Seed / Hạt giống
+  ('Dragon Breathe',     '🔥', '1', '9K',  '20K',  99, 412, true,  'Seed', 'legendary'),
+  ('Moon Bloom',         '🪷', '1', '30K', '40K',  63, 198, false, 'Seed', 'epic'),
+  ('Ghost Pepper',       '🌶️', '1', '50K', '70K',  28, 145, true,  'Seed', 'legendary'),
+  ('Sun Bloom',          '🌻', '1', '25K', '35K',  71, 168, false, 'Seed', 'epic'),
+  ('Star Fruit',         '⭐', '1', '20K', '30K',  88, 210, false, 'Seed', 'rare'),
+  ('Eclipse Bloom',      '🌑', '1', '45K', '60K',  34, 132, true,  'Seed', 'legendary'),
+  -- Gear / Dụng cụ
+  ('Super Watering Can', '🫖', '1', '10K', '20K',  80, 305, false, 'Gear', 'rare'),
+  ('Super Sprinkler',    '⛲', '1', '10K', '20K',  74, 277, false, 'Gear', 'rare'),
+  -- Pet / Thú cưng
+  ('Raccoon',            '🦝', '1', '40K', '55K',  42, 156, false, 'Pet',  'epic'),
+  ('Black Dragon',       '🐉', '1', '80K', '100K', 18,  98, true,  'Pet',  'legendary'),
+  ('Ice Serpent',        '🐍', '1', '60K', '80K',  25, 112, false, 'Pet',  'legendary'),
+  ('Golden Dragonfly',   '🪰', '1', '55K', '70K',  30,  87, false, 'Pet',  'epic'),
+  ('Unicorn',            '🦄', '1', '90K', '120K', 12,  64, true,  'Pet',  'legendary')
+) AS v
+WHERE NOT EXISTS (SELECT 1 FROM products);
 
 -- Seed contact info
-INSERT INTO contact (handle, hours) VALUES
-  ('sohaynho01', '8h - 24h hằng ngày');
+INSERT INTO contact (handle, hours)
+SELECT 'sohaynho01', '8h - 24h hằng ngày'
+WHERE NOT EXISTS (SELECT 1 FROM contact);
+
+-- ============================================
+-- MIGRATION: thêm customer_id vào orders (nếu bảng đã tồn tại từ trước)
+-- ============================================
+ALTER TABLE orders
+  ADD COLUMN IF NOT EXISTS customer_id UUID REFERENCES customers(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_orders_customer ON orders(customer_id);
+
+-- ============================================
+-- MIGRATION: thêm image_url vào products (nếu bảng đã tồn tại từ trước)
+-- ============================================
+ALTER TABLE products
+  ADD COLUMN IF NOT EXISTS image_url TEXT;
+
+-- ============================================
+-- MIGRATION: đổi danh mục 'Item hiếm' -> 'Pet' (nếu DB đã tồn tại từ trước)
+-- Bỏ CHECK cũ, cập nhật dữ liệu, thêm CHECK mới.
+-- ============================================
+ALTER TABLE products DROP CONSTRAINT IF EXISTS products_category_check;
+UPDATE products SET category = 'Pet' WHERE category = 'Item hiếm';
+ALTER TABLE products
+  ADD CONSTRAINT products_category_check CHECK (category IN ('Seed', 'Gear', 'Pet'));
+
+
+

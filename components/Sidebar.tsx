@@ -1,18 +1,33 @@
-const CATS = [
-  { ico: "📦", name: "Tất cả sản phẩm", cnt: 6, active: true },
-  { ico: "🌱", name: "Seed / Hạt giống", cnt: 2 },
-  { ico: "🔧", name: "Gear / Dụng cụ", cnt: 2 },
-  { ico: "💎", name: "Item hiếm", cnt: 2 },
+export type CatKey = "all" | "Seed" | "Gear" | "Pet";
+
+const CATS: { ico: string; name: string; key: CatKey; cnt: number }[] = [
+  { ico: "📦", name: "Tất cả sản phẩm", key: "all", cnt: 14 },
+  { ico: "🌱", name: "Seed / Hạt giống", key: "Seed", cnt: 7 },
+  { ico: "🔧", name: "Gear / Dụng cụ", key: "Gear", cnt: 2 },
+  { ico: "🐶", name: "Pet / Thú cưng", key: "Pet", cnt: 5 },
 ];
 
-export default function Sidebar() {
+export default function Sidebar({
+  active = "all",
+  onSelect,
+}: {
+  active?: CatKey;
+  onSelect?: (key: CatKey) => void;
+}) {
   return (
     <aside className="side">
       <h3>Danh mục</h3>
       <ul>
         {CATS.map((c) => (
-          <li key={c.name}>
-            <a className={c.active ? "active" : ""} href="#products">
+          <li key={c.key}>
+            <a
+              className={active === c.key ? "active" : ""}
+              href="#products"
+              onClick={(e) => {
+                e.preventDefault();
+                onSelect?.(c.key);
+              }}
+            >
               <span className="ico">{c.ico}</span>
               {c.name}
               <span className="cnt">{c.cnt}</span>

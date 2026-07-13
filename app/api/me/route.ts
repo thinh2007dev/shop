@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
   const { data, error } = await supabaseAdmin
     .from("customers")
-    .select("id, username, display_name, balance")
+    .select("id, username, display_name, balance, is_admin")
     .eq("id", id)
     .maybeSingle();
 

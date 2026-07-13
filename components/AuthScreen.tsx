@@ -40,9 +40,9 @@ export default function AuthScreen() {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="auth-logo">
-          <span className="mark">🌱</span>
+          <span className="mark">🛒</span>
           <span>
-            GAG<span className="g">2</span> Shop
+            <span className="g">shopsohaynho2</span>
           </span>
         </div>
         <p className="auth-sub">

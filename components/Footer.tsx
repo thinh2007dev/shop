@@ -15,7 +15,7 @@ export default function Footer() {
       <div className="wrap">
         <div className="cols">
           <div>
-            <h4>CÀY THUÊ GAG2 - {contact.handle}</h4>
+            <h4>shopsohaynho2 - {contact.handle}</h4>
             <p>
               Shop chuyên cung cấp item, seed, gear game Grow A Garden 2 giá rẻ,
               uy tín, giao dịch nhanh chóng, an toàn tuyệt đối.
@@ -46,7 +46,7 @@ export default function Footer() {
           </div>
         </div>
         <div className="copy">
-          © 2025 {contact.handle} — CÀY THUÊ GAG2. Uy tín tạo nên thương hiệu.
+          © 2025 {contact.handle} — shopsohaynho2. Uy tín tạo nên thương hiệu.
         </div>
       </div>
     </footer>

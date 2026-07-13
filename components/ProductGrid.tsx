@@ -1,10 +1,25 @@
 "use client";
 
+
 import { useState, useEffect } from "react";
-import { Product, RARITY_LABEL, FALLBACK_PRODUCTS, fetchProducts } from "@/lib/products";
+import { Product, RARITY_LABEL, FALLBACK_PRODUCTS, fetchProducts, displayPrice, productImage } from "@/lib/products";
 import OrderModal from "./OrderModal";
 
-export default function ProductGrid() {
+function initials(name: string) {
+  return name
+    .trim()
+    .split(/\s+/)
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+}
+
+
+export default function ProductGrid({
+  featured = false,
+  category = "all",
+}: { featured?: boolean; category?: string } = {}) {
   const [products, setProducts] = useState<Product[]>(FALLBACK_PRODUCTS);
   const [selected, setSelected] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
@@ -17,10 +32,17 @@ export default function ProductGrid() {
       .finally(() => setLoading(false));
   }, []);
 
+  const list = featured
+    ? products.filter((p) => p.hot).slice(0, 3)
+    : category === "all"
+    ? products
+    : products.filter((p) => p.category === category);
+
   return (
     <>
       <div className="products" id="products">
-        {products.map((p, i) => {
+        {list.map((p, i) => {
+
           const total = p.stock + p.sold;
           const pct = Math.round((p.stock / total) * 100);
           return (
@@ -32,7 +54,12 @@ export default function ProductGrid() {
               <div className="inner">
                 {p.hot && <span className="tag-hot">🔥 HOT</span>}
                 <div className="top">
-                  <div className="ico">{p.emoji}</div>
+                  <div className="ico">
+                    <img src={productImage(p)} alt={p.name} loading="lazy" />
+                    <span className="ini fallback">{initials(p.name)}</span>
+                  </div>
+
+
                   <div>
                     <div className="name">{p.name}</div>
                     <div className="rarity">
@@ -49,17 +76,10 @@ export default function ProductGrid() {
                   <span style={{ width: `${pct}%` }} />
                 </div>
                 <div className="prices">
-                  <div className="pbox bank">
-                    <div className="k">Bank</div>
+                  <div className="pbox bank" style={{ gridColumn: "1 / -1" }}>
+                    <div className="k">Giá</div>
                     <div className="v">
-                      {p.price_bank}
-                      <span style={{ fontSize: 11, color: "var(--muted)" }}>/{p.unit}</span>
-                    </div>
-                  </div>
-                  <div className="pbox card-p">
-                    <div className="k">Card</div>
-                    <div className="v">
-                      {p.price_card}
+                      {displayPrice(p)}
                       <span style={{ fontSize: 11, color: "var(--muted)" }}>/{p.unit}</span>
                     </div>
                   </div>

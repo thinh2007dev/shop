@@ -7,7 +7,9 @@ export type User = {
   username: string;
   display_name: string | null;
   balance?: number;
+  is_admin?: boolean;
 };
+
 
 type AuthContextType = {
   user: User | null;
@@ -76,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const res = await fetch(`/api/me?id=${user.id}`);
       if (!res.ok) return;
       const data = await res.json();
-      persist({ ...user, balance: data.balance });
+      persist({ ...user, balance: data.balance, is_admin: data.is_admin ?? user.is_admin });
     } catch {
       /* ignore */
     }

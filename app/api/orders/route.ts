@@ -22,7 +22,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { customer_name, product_id, quantity, payment_method, total_price } = body;
+    const { customer_name, customer_id, product_id, quantity, payment_method, total_price } = body;
 
     if (!customer_name || !product_id || !quantity || !payment_method || !total_price) {
       return NextResponse.json({ error: "Thiếu thông tin đơn hàng" }, { status: 400 });
@@ -33,6 +33,7 @@ export async function POST(request: Request) {
       .from("orders")
       .insert({
         customer_name,
+        customer_id: customer_id || null,
         product_id,
         quantity,
         payment_method,

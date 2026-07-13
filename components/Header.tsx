@@ -3,12 +3,27 @@
 import { useEffect, useState } from "react";
 import { FALLBACK_CONTACT, fetchContact } from "@/lib/products";
 import { useAuth } from "@/lib/auth-context";
-import DepositModal from "./DepositModal";
 
-export default function Header() {
+export type Tab = "home" | "products" | "deposit" | "history" | "admin";
+
+const MENU: { key: Tab; label: string }[] = [
+  { key: "home", label: "Trang chủ" },
+  { key: "products", label: "Sản phẩm" },
+  { key: "deposit", label: "Nạp tiền" },
+  { key: "history", label: "Lịch sử" },
+];
+
+
+
+export default function Header({
+  active,
+  onNav,
+}: {
+  active: Tab;
+  onNav: (tab: Tab) => void;
+}) {
   const [contact, setContact] = useState(FALLBACK_CONTACT);
   const { user, logout, refreshBalance } = useAuth();
-  const [showDeposit, setShowDeposit] = useState(false);
 
   useEffect(() => {
     fetchContact().then(setContact);
@@ -23,7 +38,7 @@ export default function Header() {
           <div className="seg">
             <a href="#">Chính sách</a>
             <a href="#">FAQ</a>
-            <a href="#lienhe">Liên hệ</a>
+            <a href="#lienhe">Liên hệ ({contact.handle})</a>
           </div>
           <div className="seg">
             <span className="pill on">VI</span>
@@ -39,19 +54,34 @@ export default function Header() {
 
       <nav className="nav">
         <div className="wrap">
-          <div className="logo">
-            <span className="mark">🌱</span>
+          <div className="logo" onClick={() => onNav("home")} style={{ cursor: "pointer" }}>
+            <span className="mark">🛒</span>
             <span>
-              GAG<span className="g">2</span> Shop
+              <span className="g">shopsohaynho2</span>
             </span>
           </div>
           <div className="menu">
-            <a className="active" href="#">Trang chủ</a>
-            <a href="#products">Sản phẩm</a>
-            <a href="#">Nạp tiền</a>
-            <a href="#">Lịch sử</a>
-            <a href="#huongdan">Tài liệu</a>
+            {MENU.map((m) => (
+              <a
+                key={m.key}
+                className={active === m.key ? "active" : ""}
+                onClick={() => onNav(m.key)}
+                style={{ cursor: "pointer" }}
+              >
+                {m.label}
+              </a>
+            ))}
+            {user?.is_admin && (
+              <a
+                className={active === "admin" ? "active admin-link" : "admin-link"}
+                onClick={() => onNav("admin")}
+                style={{ cursor: "pointer" }}
+              >
+                🛠️ Quản lý
+              </a>
+            )}
           </div>
+
           <div className="right">
             <div className="icon-btn" title="Yêu thích">
               ♥<span className="cnt">3</span>
@@ -65,48 +95,14 @@ export default function Header() {
             <span className="balance">
               💳 {(user?.balance || 0).toLocaleString("vi-VN")}đ
             </span>
-            <button className="deposit-btn" onClick={() => setShowDeposit(true)}>
+            <button className="deposit-btn" onClick={() => onNav("deposit")}>
               + Nạp tiền
             </button>
             <button className="login" onClick={logout}>Đăng xuất</button>
           </div>
         </div>
       </nav>
-
-      {showDeposit && <DepositModal onClose={() => setShowDeposit(false)} />}
-
-
-      <div className="wrap">
-        <div className="banner">
-          <div className="jp">犬夜叉</div>
-          <div className="htxt">
-            <h1>
-              CÀY THUÊ <span className="g">GAG2</span>
-            </h1>
-            <p className="sub">
-              Shop item / seed / gear game Grow A Garden 2 — giao dịch nhanh, uy
-              tín, an toàn tuyệt đối.
-            </p>
-            <div className="tags">
-              <span>🐾 UY TÍN</span>
-              <span>🐾 NHANH CHÓNG</span>
-              <span>🐾 GIÁ RẺ</span>
-              <span>🐾 CHẤT LƯỢNG</span>
-            </div>
-          </div>
-          <div className="promo">
-            <div className="gift">🎁</div>
-            <div className="n">1</div>
-            <div className="txt">
-              BUY TRÊN <b>50K</b>
-              <br />
-              TẶNG AE
-              <br />
-              <b>MOON BLOOM</b>
-            </div>
-          </div>
-        </div>
-      </div>
     </>
   );
 }
+
