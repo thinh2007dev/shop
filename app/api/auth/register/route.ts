@@ -46,7 +46,15 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(user, { status: 201 });
-  } catch {
-    return NextResponse.json({ error: "Yêu cầu không hợp lệ" }, { status: 400 });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Body JSON hỏng -> 400. Còn lại (fetch failed, thiếu env, DB down) -> 500 + log.
+    if (err instanceof SyntaxError) {
+      return NextResponse.json({ error: "Yêu cầu không hợp lệ" }, { status: 400 });
+    }
+    console.error("[register] error:", msg);
+    return NextResponse.json({ error: `Lỗi máy chủ: ${msg}` }, { status: 500 });
   }
 }
+
+
