@@ -24,6 +24,59 @@ export function sepayConfigured(): boolean {
   return Boolean(SEPAY_ACCOUNT && SEPAY_BANK);
 }
 
+// Rút mã nạp (vd GAG2X7K9Q2) từ nội dung chuyển khoản.
+export function extractCode(text: string): string | null {
+  if (!text) return null;
+  const cleaned = text.toUpperCase().replace(/[^A-Z0-9]/g, "");
+  const re = new RegExp(`${DEPOSIT_PREFIX}[A-Z0-9]{6}`);
+  const m = cleaned.match(re);
+  return m ? m[0] : null;
+}
+
+// Một giao dịch tiền vào lấy từ SePay API.
+export interface SepayTx {
+  id: string;
+  amount: number;
+  content: string;
+}
+
+// Gọi SePay API lấy các giao dịch TIỀN VÀO gần đây (thay cho webhook).
+// Docs: https://docs.sepay.vn/api-giao-dich.html
+// Cần SEPAY_API_TOKEN (User API Token trong SePay -> Cấu hình -> API Access).
+export async function fetchSepayIncoming(limit = 20): Promise<SepayTx[]> {
+  const token = process.env.SEPAY_API_TOKEN;
+  if (!token) throw new Error("Thiếu SEPAY_API_TOKEN");
+
+  const params = new URLSearchParams({ limit: String(limit) });
+  if (SEPAY_ACCOUNT) params.set("account_number", SEPAY_ACCOUNT);
+
+  const res = await fetch(
+    `https://my.sepay.vn/userapi/transactions/list?${params.toString()}`,
+    {
+      headers: { Authorization: `Bearer ${token}` },
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(`SePay API lỗi ${res.status}`);
+  }
+
+  const json = (await res.json()) as {
+    transactions?: Array<Record<string, unknown>>;
+  };
+
+  const list = json.transactions || [];
+  return list
+    .map((t) => ({
+      id: String(t.id ?? t.reference_number ?? ""),
+      amount: Math.round(Number(t.amount_in) || 0),
+      content: String(t.transaction_content ?? ""),
+    }))
+    .filter((t) => t.id && t.amount > 0);
+}
+
+
 // URL ảnh QR động của SePay (VietQR). Quét là ra sẵn STK + nội dung + số tiền.
 // Docs: https://qr.sepay.vn/img
 export function buildQrUrl(code: string, amount?: number): string {
