@@ -5,7 +5,7 @@
 export const BANK_ID = "MB";
 export const SEPAY_BANK = "MBBank";        // tên hiển thị
 export const SEPAY_ACCOUNT = "0969172706"; // số tài khoản
-export const SEPAY_ACCOUNT_NAME = "NGUYEN VAN A"; // chủ tài khoản (viết IN HOA, không dấu)
+export const SEPAY_ACCOUNT_NAME = "NGUYEN QUOC HUY"; // chủ tài khoản (viết IN HOA, không dấu)
 // ==========================================
 
 // Prefix nội dung chuyển khoản. Chỉ dùng chữ + số để tránh bank lọc ký tự đặc biệt.
