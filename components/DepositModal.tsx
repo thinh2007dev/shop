@@ -91,7 +91,7 @@ export default function DepositModal({ onClose }: { onClose: () => void }) {
               <div className="ico">💰</div>
               <div>
                 <h3>Nạp tiền vào tài khoản</h3>
-                <div className="rar">Chuyển khoản tự động qua SePay</div>
+                <div className="rar">Chuyển khoản tự động qua MB Bank</div>
               </div>
             </div>
 

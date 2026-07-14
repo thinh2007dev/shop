@@ -8,6 +8,7 @@ import {
   SEPAY_ACCOUNT,
   SEPAY_ACCOUNT_NAME,
 } from "@/lib/sepay";
+import { syncDeposits } from "@/lib/bytemart";
 
 
 export const dynamic = "force-dynamic";
@@ -88,6 +89,9 @@ export async function GET(request: Request) {
   if (!id) {
     return NextResponse.json({ error: "Thiếu id" }, { status: 400 });
   }
+
+  // Chủ động quét lịch sử giao dịch Bytemart -> khớp mã -> cộng tiền, trước khi đọc trạng thái.
+  await syncDeposits();
 
   const { data, error } = await supabaseAdmin
     .from("deposits")
