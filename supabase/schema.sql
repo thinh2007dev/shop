@@ -69,6 +69,23 @@ CREATE TABLE IF NOT EXISTS deposits (
 CREATE INDEX IF NOT EXISTS idx_deposits_code ON deposits(code);
 CREATE INDEX IF NOT EXISTS idx_deposits_customer ON deposits(customer_id);
 
+-- Card deposits table (lệnh nạp bằng thẻ cào)
+CREATE TABLE IF NOT EXISTS card_deposits (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  customer_id UUID NOT NULL REFERENCES customers(id) ON DELETE CASCADE,
+  telco TEXT NOT NULL,                 -- loại thẻ: Viettel, Mobifone, Vinaphone...
+  amount BIGINT,                       -- mệnh giá khách khai báo
+  card_serial TEXT NOT NULL,           -- id/serial thẻ
+  card_code TEXT NOT NULL,             -- mã thẻ (số nạp)
+  received_amount BIGINT,              -- số tiền admin xác nhận cộng
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'completed', 'rejected')),
+  created_at TIMESTAMPTZ DEFAULT now(),
+  completed_at TIMESTAMPTZ
+);
+
+CREATE INDEX IF NOT EXISTS idx_card_deposits_customer ON card_deposits(customer_id);
+
+
 -- ============================================
 -- RPC: hoàn tất nạp tiền (atomic)
 -- Match theo code, chống nạp trùng bằng sepay_tx_id + status.
@@ -161,7 +178,51 @@ END;
 $$;
 
 -- ============================================
+-- RPC: admin DUYỆT thẻ cào (atomic)
+-- Đổi card_deposit pending -> completed và cộng tiền vào ví khách.
+-- p_amount: số tiền admin xác nhận cộng (bắt buộc > 0).
+-- Trả về customer_id nếu duyệt thành công, NULL nếu không tìm thấy/đã xử lý.
+-- ============================================
+CREATE OR REPLACE FUNCTION admin_complete_card_deposit(
+  p_card_id UUID,
+  p_amount BIGINT
+) RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_card card_deposits%ROWTYPE;
+BEGIN
+  SELECT * INTO v_card
+  FROM card_deposits
+  WHERE id = p_card_id AND status = 'pending'
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN NULL;  -- không có lệnh pending khớp id
+  END IF;
+
+  IF p_amount IS NULL OR p_amount <= 0 THEN
+    RETURN NULL;  -- số tiền không hợp lệ
+  END IF;
+
+  UPDATE card_deposits
+  SET status = 'completed',
+      received_amount = p_amount,
+      completed_at = now()
+  WHERE id = v_card.id;
+
+  UPDATE customers
+  SET balance = balance + p_amount
+  WHERE id = v_card.customer_id;
+
+  RETURN v_card.customer_id;
+END;
+$$;
+
+-- ============================================
 -- RPC: admin cộng/trừ tiền ví thủ công (atomic)
+
 -- Tìm theo username (không phân biệt hoa/thường). p_amount có thể âm để trừ.
 -- Trả về dòng customer sau khi cập nhật; rỗng nếu không tìm thấy username.
 -- ============================================
