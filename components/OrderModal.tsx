@@ -18,7 +18,8 @@ export default function OrderModal({
   onClose: () => void;
 }) {
   const { user, refreshBalance } = useAuth();
-  const [qty, setQty] = useState(1);
+  const [qtyInput, setQtyInput] = useState("1");
+  const qty = Math.max(1, Number(qtyInput) || 1);
   const [gift, setGift] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -124,8 +125,9 @@ export default function OrderModal({
               <input
                 type="number"
                 min={1}
-                value={qty}
-                onChange={(e) => setQty(Math.max(1, Number(e.target.value) || 1))}
+                value={qtyInput}
+                onChange={(e) => setQtyInput(e.target.value)}
+                onBlur={() => setQtyInput(String(qty))}
               />
             </div>
 

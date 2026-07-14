@@ -21,6 +21,17 @@ CREATE TABLE IF NOT EXISTS products (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Customers table (accounts)
+CREATE TABLE IF NOT EXISTS customers (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  username TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  display_name TEXT,
+  balance BIGINT NOT NULL DEFAULT 0,
+  is_admin BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Orders table
 CREATE TABLE IF NOT EXISTS orders (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
@@ -42,16 +53,6 @@ CREATE TABLE IF NOT EXISTS contact (
   hours TEXT NOT NULL
 );
 
--- Customers table (accounts)
-CREATE TABLE IF NOT EXISTS customers (
-  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  username TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  display_name TEXT,
-  balance BIGINT NOT NULL DEFAULT 0,
-  is_admin BOOLEAN NOT NULL DEFAULT false,
-  created_at TIMESTAMPTZ DEFAULT now()
-);
 
 -- Deposits table (lệnh nạp tiền qua SePay)
 CREATE TABLE IF NOT EXISTS deposits (
@@ -345,6 +346,12 @@ ALTER TABLE products
 ALTER TABLE customers
   ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
 UPDATE customers SET is_admin = true WHERE lower(username) = 'sohaynho01';
+
+-- ============================================
+-- Bắt PostgREST reload schema cache (fix "Could not find the function ... in the schema cache")
+-- ============================================
+NOTIFY pgrst, 'reload schema';
+
 
 
 
