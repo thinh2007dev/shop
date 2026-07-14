@@ -1,12 +1,14 @@
-// Helper cho SePay / VietQR
+// Helper thanh toán chuyển khoản (VietQR). Không dùng SePay API nữa.
 
-export const SEPAY_BANK = process.env.NEXT_PUBLIC_SEPAY_BANK || "MBBank";
-export const SEPAY_ACCOUNT = process.env.NEXT_PUBLIC_SEPAY_ACCOUNT || "";
-export const SEPAY_ACCOUNT_NAME =
-  process.env.NEXT_PUBLIC_SEPAY_ACCOUNT_NAME || "";
+// ==== THÔNG TIN NHẬN TIỀN — SỬA Ở ĐÂY ====
+// BANK_ID: mã ngân hàng theo chuẩn VietQR (vd: MB, VCB, TCB, ACB, VPB, BIDV, VIETINBANK, VIETCOMBANK...)
+export const BANK_ID = "MB";
+export const SEPAY_BANK = "MBBank";        // tên hiển thị
+export const SEPAY_ACCOUNT = "0969172706"; // số tài khoản
+export const SEPAY_ACCOUNT_NAME = "NGUYEN VAN A"; // chủ tài khoản (viết IN HOA, không dấu)
+// ==========================================
 
-// Prefix nội dung chuyển khoản. SePay match phần này trong "nội dung CK".
-// Chỉ dùng chữ + số để tránh bank lọc ký tự đặc biệt.
+// Prefix nội dung chuyển khoản. Chỉ dùng chữ + số để tránh bank lọc ký tự đặc biệt.
 export const DEPOSIT_PREFIX = "GAG2";
 
 // Sinh mã nạp duy nhất, vd: GAG2X7K9Q2
@@ -19,9 +21,9 @@ export function generateDepositCode(): string {
   return `${DEPOSIT_PREFIX}${s}`;
 }
 
-// Kiểm tra cấu hình SePay đã đủ chưa (tránh sinh QR lỗi khi thiếu STK).
+// Luôn cấu hình sẵn (hardcode) nên trả về true.
 export function sepayConfigured(): boolean {
-  return Boolean(SEPAY_ACCOUNT && SEPAY_BANK);
+  return Boolean(SEPAY_ACCOUNT && BANK_ID);
 }
 
 // Rút mã nạp (vd GAG2X7K9Q2) từ nội dung chuyển khoản.
@@ -33,66 +35,13 @@ export function extractCode(text: string): string | null {
   return m ? m[0] : null;
 }
 
-// Một giao dịch tiền vào lấy từ SePay API.
-export interface SepayTx {
-  id: string;
-  amount: number;
-  content: string;
-}
-
-// Gọi SePay API lấy các giao dịch TIỀN VÀO gần đây (thay cho webhook).
-// Docs: https://docs.sepay.vn/api-giao-dich.html
-// Cần SEPAY_API_TOKEN (User API Token trong SePay -> Cấu hình -> API Access).
-export async function fetchSepayIncoming(limit = 20): Promise<SepayTx[]> {
-  const token = process.env.SEPAY_API_TOKEN;
-  if (!token) throw new Error("Thiếu SEPAY_API_TOKEN");
-
-  const params = new URLSearchParams({ limit: String(limit) });
-  if (SEPAY_ACCOUNT) params.set("account_number", SEPAY_ACCOUNT);
-
-  const res = await fetch(
-    `https://my.sepay.vn/userapi/transactions/list?${params.toString()}`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-      cache: "no-store",
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`SePay API lỗi ${res.status}`);
-  }
-
-  const json = (await res.json()) as {
-    transactions?: Array<Record<string, unknown>>;
-  };
-
-  const list = json.transactions || [];
-  return list
-    .map((t) => ({
-      id: String(t.id ?? t.reference_number ?? ""),
-      amount: Math.round(Number(t.amount_in) || 0),
-      content: String(t.transaction_content ?? ""),
-    }))
-    .filter((t) => t.id && t.amount > 0);
-}
-
-
-// URL ảnh QR động của SePay (VietQR). Quét là ra sẵn STK + nội dung + số tiền.
-// Docs: https://qr.sepay.vn/img
+// URL ảnh QR động VietQR. Quét ra sẵn STK + tên + nội dung + số tiền.
+// Docs: https://www.vietqr.io/danh-sach-api/link-tao-ma-qr/
 export function buildQrUrl(code: string, amount?: number): string {
-  if (!sepayConfigured()) {
-    throw new Error(
-      "SePay chưa được cấu hình: thiếu NEXT_PUBLIC_SEPAY_ACCOUNT hoặc NEXT_PUBLIC_SEPAY_BANK"
-    );
-  }
   const params = new URLSearchParams({
-    acc: SEPAY_ACCOUNT,
-    bank: SEPAY_BANK,
-    des: code,
-    template: "compact",
+    accountName: SEPAY_ACCOUNT_NAME,
+    addInfo: code,
   });
   if (amount && amount > 0) params.set("amount", String(amount));
-  return `https://qr.sepay.vn/img?${params.toString()}`;
+  return `https://img.vietqr.io/image/${BANK_ID}-${SEPAY_ACCOUNT}-compact2.png?${params.toString()}`;
 }
-
-
