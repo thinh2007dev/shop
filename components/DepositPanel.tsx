@@ -27,7 +27,9 @@ export default function DepositPanel() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
+  const [notified, setNotified] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
 
   useEffect(() => {
     if (!deposit || done) return;
@@ -75,14 +77,17 @@ export default function DepositPanel() {
   function reset() {
     setDeposit(null);
     setDone(false);
+    setNotified(false);
     setError("");
   }
+
 
   return (
     <div className="panel">
       <div className="panel-head">
         <h2>💰 Nạp tiền vào tài khoản</h2>
-        <p>Chuyển khoản tự động qua SePay — tiền vào ví sau vài giây.</p>
+        <p>Quét QR chuyển khoản, sau đó bấm &quot;Tôi đã chuyển khoản&quot; — admin duyệt và cộng tiền vào ví.</p>
+
       </div>
 
       <div className="panel-card">
@@ -125,8 +130,9 @@ export default function DepositPanel() {
               {busy ? "Đang tạo..." : "Tạo mã nạp"}
             </button>
             <p className="hint">
-              Tối thiểu <b>10.000đ</b>. Tiền vào tài khoản <b>tự động</b> sau vài giây.
+              Tối thiểu <b>10.000đ</b>. Sau khi chuyển khoản, bấm xác nhận để admin duyệt.
             </p>
+
           </>
         ) : (
           <>
@@ -134,9 +140,10 @@ export default function DepositPanel() {
               <div className="ico">📲</div>
               <div>
                 <h3>Quét mã để chuyển khoản</h3>
-                <div className="rar">Đang chờ nhận tiền tự động…</div>
+                <div className="rar">Chuyển xong bấm xác nhận để admin duyệt</div>
               </div>
             </div>
+
 
             <div className="dep-qr">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -160,13 +167,20 @@ export default function DepositPanel() {
               <div className="row hl"><span>Nội dung CK</span><b>{deposit.code}</b></div>
             </div>
 
-            <div className="dep-wait">
-              <span className="spin" /> Đang chờ chuyển khoản… (tự động cập nhật)
-            </div>
+            {notified ? (
+              <div className="dep-wait">
+                <span className="spin" /> Đã báo admin. Đang chờ duyệt… (tự động cập nhật khi tiền vào ví)
+              </div>
+            ) : (
+              <button className="cbtn" onClick={() => setNotified(true)}>
+                ✓ Tôi đã chuyển khoản
+              </button>
+            )}
             <p className="hint">
-              Nhập <b>đúng nội dung CK</b> ở trên. Quét QR sẽ tự điền sẵn.
+              Nhập <b>đúng nội dung CK</b> ở trên. Quét QR sẽ tự điền sẵn. Tiền vào ví sau khi admin duyệt.
             </p>
             <button className="dep-cancel" onClick={reset}>Huỷ / tạo mã khác</button>
+
           </>
         )}
       </div>

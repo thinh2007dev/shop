@@ -4,8 +4,6 @@ import {
   generateDepositCode,
   buildQrUrl,
   sepayConfigured,
-  fetchSepayIncoming,
-  extractCode,
   SEPAY_BANK,
   SEPAY_ACCOUNT,
   SEPAY_ACCOUNT_NAME,
@@ -81,31 +79,8 @@ export async function POST(request: Request) {
   }
 }
 
-// Tự dò giao dịch SePay rồi cộng tiền cho các lệnh pending khớp mã.
-// Thay cho webhook: mỗi lần khách poll status, server chủ động hỏi SePay.
-// Lỗi khi gọi SePay được nuốt (không chặn việc trả status hiện tại).
-async function syncFromSepay(): Promise<void> {
-  if (!process.env.SEPAY_API_TOKEN) return;
-  let txs;
-  try {
-    txs = await fetchSepayIncoming(20);
-  } catch {
-    return; // SePay lỗi/timeout -> bỏ qua, lần poll sau thử lại
-  }
-  for (const tx of txs) {
-    const code = extractCode(tx.content);
-    if (!code) continue;
-    // complete_deposit là atomic + chống trùng theo sepay_tx_id
-    await supabaseAdmin.rpc("complete_deposit", {
-      p_code: code,
-      p_amount: tx.amount,
-      p_tx_id: tx.id,
-    });
-  }
-}
-
-// GET /api/deposits?id=... - Kiểm tra trạng thái lệnh nạp
-// Trước khi trả status, tự đồng bộ giao dịch mới từ SePay (không cần webhook).
+// GET /api/deposits?id=... - Kiểm tra trạng thái lệnh nạp.
+// Admin duyệt tay: chỉ đọc trạng thái hiện tại từ DB (không gọi API bank).
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get("id");
@@ -113,9 +88,6 @@ export async function GET(request: Request) {
   if (!id) {
     return NextResponse.json({ error: "Thiếu id" }, { status: 400 });
   }
-
-  // Chủ động dò tiền về từ SePay rồi mới đọc trạng thái mới nhất
-  await syncFromSepay();
 
   const { data, error } = await supabaseAdmin
     .from("deposits")

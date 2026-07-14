@@ -116,6 +116,51 @@ END;
 $$;
 
 -- ============================================
+-- RPC: admin DUYỆT TAY lệnh nạp (atomic)
+-- Đổi deposit pending -> completed và cộng tiền vào ví khách.
+-- p_amount: số tiền thực nhận admin xác nhận (nếu null lấy amount dự kiến).
+-- Trả về customer_id nếu duyệt thành công, NULL nếu không tìm thấy/đã xử lý.
+-- ============================================
+CREATE OR REPLACE FUNCTION admin_complete_deposit(
+  p_deposit_id UUID,
+  p_amount BIGINT DEFAULT NULL
+) RETURNS UUID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_dep deposits%ROWTYPE;
+  v_amount BIGINT;
+BEGIN
+  SELECT * INTO v_dep
+  FROM deposits
+  WHERE id = p_deposit_id AND status = 'pending'
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN NULL;  -- không có lệnh pending khớp id
+  END IF;
+
+  v_amount := COALESCE(p_amount, v_dep.amount, 0);
+  IF v_amount <= 0 THEN
+    RETURN NULL;  -- không xác định được số tiền
+  END IF;
+
+  UPDATE deposits
+  SET status = 'completed',
+      received_amount = v_amount,
+      completed_at = now()
+  WHERE id = v_dep.id;
+
+  UPDATE customers
+  SET balance = balance + v_amount
+  WHERE id = v_dep.customer_id;
+
+  RETURN v_dep.customer_id;
+END;
+$$;
+
+-- ============================================
 -- RPC: admin cộng/trừ tiền ví thủ công (atomic)
 -- Tìm theo username (không phân biệt hoa/thường). p_amount có thể âm để trừ.
 -- Trả về dòng customer sau khi cập nhật; rỗng nếu không tìm thấy username.

@@ -28,6 +28,18 @@ type AdminOrder = {
   products: { name: string; emoji: string } | null;
 };
 
+type AdminDeposit = {
+  id: string;
+  code: string;
+  amount: number | null;
+  received_amount: number | null;
+  status: "pending" | "completed" | "expired";
+  created_at: string;
+  completed_at: string | null;
+  customers: { username: string; display_name: string | null } | null;
+};
+
+
 const CATEGORIES: Product["category"][] = ["Seed", "Gear", "Pet"];
 const CAT_LABEL: Record<string, string> = { Seed: "🌱 Seed", Gear: "⚙️ Gear", Pet: "🐾 Pet" };
 
@@ -45,28 +57,35 @@ function parsePriceValue(product: AdminProduct): number {
 
 export default function AdminPanel() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<"overview" | "products" | "orders" | "topup">("overview");
+  const [tab, setTab] = useState<"overview" | "products" | "orders" | "deposits" | "topup">("overview");
   const [stats, setStats] = useState<Stats | null>(null);
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [deposits, setDeposits] = useState<AdminDeposit[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [msg, setMsg] = useState("");
 
   const headers = user ? { "x-admin-id": user.id } : undefined;
+  const pendingDeposits = deposits.filter((d) => d.status === "pending").length;
+
 
   const loadAll = useCallback(async () => {
     if (!user) return;
     setLoading(true);
     try {
       const h = { "x-admin-id": user.id };
-      const [s, p, o] = await Promise.all([
+      const [s, p, o, d] = await Promise.all([
         fetch("/api/admin/stats", { headers: h }),
         fetch("/api/admin/products", { headers: h }),
         fetch("/api/admin/orders", { headers: h }),
+        fetch("/api/admin/deposits", { headers: h }),
       ]);
       if (s.ok) setStats(await s.json());
       if (p.ok) setProducts(await p.json());
       if (o.ok) setOrders(await o.json());
+      if (d.ok) setDeposits(await d.json());
+
     } catch {
       /* ignore */
     } finally {
@@ -116,6 +135,24 @@ export default function AdminPanel() {
     }
   }
 
+  // ---- Duyệt / từ chối lệnh nạp ----
+  async function reviewDeposit(id: string, action: "approve" | "reject") {
+    if (!headers) return;
+    const res = await fetch("/api/admin/deposits", {
+      method: "PATCH",
+      headers: { ...headers, "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action }),
+    });
+    if (res.ok) {
+      flash(action === "approve" ? "Đã cộng tiền ✔" : "Đã từ chối");
+      loadAll();
+    } else {
+      const e = await res.json().catch(() => ({}));
+      flash(e.error || "Thao tác thất bại");
+    }
+  }
+
+
   return (
     <div className="admin">
       <div className="admin-head">
@@ -138,10 +175,14 @@ export default function AdminPanel() {
         <button className={tab === "orders" ? "on" : ""} onClick={() => setTab("orders")}>
           🎁 Đơn hàng {stats?.pendingOrders ? `(${stats.pendingOrders})` : ""}
         </button>
+        <button className={tab === "deposits" ? "on" : ""} onClick={() => setTab("deposits")}>
+          💳 Duyệt nạp {pendingDeposits ? `(${pendingDeposits})` : ""}
+        </button>
         <button className={tab === "topup" ? "on" : ""} onClick={() => setTab("topup")}>
-          💵 Nạp tiền
+          💵 Cộng tay
         </button>
       </div>
+
 
       {loading ? (
         <div className="admin-empty">Đang tải…</div>
@@ -151,9 +192,12 @@ export default function AdminPanel() {
         <ProductsTab products={products} onSave={saveProduct} />
       ) : tab === "orders" ? (
         <OrdersTab orders={orders} onStatus={setOrderStatus} />
+      ) : tab === "deposits" ? (
+        <DepositsTab deposits={deposits} onReview={reviewDeposit} />
       ) : (
         <TopupTab headers={headers} onDone={loadAll} />
       )}
+
     </div>
   );
 }
@@ -394,7 +438,94 @@ function OrderCard({
   );
 }
 
+// ============ TAB: DUYỆT NẠP (CHUYỂN KHOẢN) ============
+const DST: Record<string, { label: string; cls: string }> = {
+  pending: { label: "Chờ duyệt", cls: "st-pending" },
+  completed: { label: "Đã cộng", cls: "st-ok" },
+  expired: { label: "Từ chối", cls: "st-cancel" },
+};
+
+function DepositsTab({
+  deposits,
+  onReview,
+}: {
+  deposits: AdminDeposit[];
+  onReview: (id: string, action: "approve" | "reject") => void;
+}) {
+  const pending = deposits.filter((d) => d.status === "pending");
+  const done = deposits.filter((d) => d.status !== "pending");
+
+  return (
+    <div className="admin-orders">
+      <h3 className="ao-section">🕒 Chờ duyệt — kiểm tra CK rồi cộng tiền ({pending.length})</h3>
+      {pending.length === 0 ? (
+        <div className="admin-empty">Không có lệnh nạp nào chờ duyệt.</div>
+      ) : (
+        <div className="ao-grid">
+          {pending.map((d) => (
+            <DepositCard key={d.id} d={d} onReview={onReview} />
+          ))}
+        </div>
+      )}
+
+      <h3 className="ao-section" style={{ marginTop: 26 }}>
+        📜 Đã xử lý ({done.length})
+      </h3>
+      {done.length === 0 ? (
+        <div className="admin-empty">Chưa có.</div>
+      ) : (
+        <div className="ao-grid">
+          {done.map((d) => (
+            <DepositCard key={d.id} d={d} onReview={onReview} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DepositCard({
+  d,
+  onReview,
+}: {
+  d: AdminDeposit;
+  onReview: (id: string, action: "approve" | "reject") => void;
+}) {
+  const st = DST[d.status] || DST.pending;
+  const shown = d.received_amount ?? d.amount ?? 0;
+  return (
+    <div className={`ao-card ${d.status === "pending" ? "hot" : ""}`}>
+      <div className="ao-head">
+        <span className="ao-code">{d.code}</span>
+        <span className={`ao-badge ${st.cls}`}>{st.label}</span>
+      </div>
+      <div className="ao-item">
+        👤 <b>{d.customers?.username || "—"}</b>
+        {d.customers?.display_name ? ` (${d.customers.display_name})` : ""}
+      </div>
+      <div className="ao-meta">
+        <span>Nội dung CK</span>
+        <span className="ao-amt">{fmtVnd(shown)}</span>
+      </div>
+      <div className="ao-date">{fmtDate(d.created_at)}</div>
+      <div className="ao-actions">
+        {d.status === "pending" && (
+          <>
+            <button className="ao-done" onClick={() => onReview(d.id, "approve")}>
+              ✔ Đã nhận tiền – cộng ví
+            </button>
+            <button className="ao-cancel" onClick={() => onReview(d.id, "reject")}>
+              ✕ Từ chối
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ============ TAB: NẠP TIỀN (CỘNG TIỀN THỦ CÔNG) ============
+
 type TopupResult = {
   username: string;
   display_name: string | null;
