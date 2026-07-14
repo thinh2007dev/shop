@@ -45,7 +45,7 @@ function parsePriceValue(product: AdminProduct): number {
 
 export default function AdminPanel() {
   const { user } = useAuth();
-  const [tab, setTab] = useState<"overview" | "products" | "orders">("overview");
+  const [tab, setTab] = useState<"overview" | "products" | "orders" | "topup">("overview");
   const [stats, setStats] = useState<Stats | null>(null);
   const [products, setProducts] = useState<AdminProduct[]>([]);
   const [orders, setOrders] = useState<AdminOrder[]>([]);
@@ -138,6 +138,9 @@ export default function AdminPanel() {
         <button className={tab === "orders" ? "on" : ""} onClick={() => setTab("orders")}>
           🎁 Đơn hàng {stats?.pendingOrders ? `(${stats.pendingOrders})` : ""}
         </button>
+        <button className={tab === "topup" ? "on" : ""} onClick={() => setTab("topup")}>
+          💵 Nạp tiền
+        </button>
       </div>
 
       {loading ? (
@@ -146,8 +149,10 @@ export default function AdminPanel() {
         <OverviewTab stats={stats} />
       ) : tab === "products" ? (
         <ProductsTab products={products} onSave={saveProduct} />
-      ) : (
+      ) : tab === "orders" ? (
         <OrdersTab orders={orders} onStatus={setOrderStatus} />
+      ) : (
+        <TopupTab headers={headers} onDone={loadAll} />
       )}
     </div>
   );
@@ -383,6 +388,122 @@ function OrderCard({
           <button className="ao-reopen" onClick={() => onStatus(o.id, "pending")}>
             ↩ Mở lại
           </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============ TAB: NẠP TIỀN (CỘNG TIỀN THỦ CÔNG) ============
+type TopupResult = {
+  username: string;
+  display_name: string | null;
+  balance: number;
+  added: number;
+};
+
+const QUICK_AMOUNTS = [10000, 20000, 50000, 100000, 200000, 500000];
+
+function TopupTab({
+  headers,
+  onDone,
+}: {
+  headers: { "x-admin-id": string } | undefined;
+  onDone: () => void;
+}) {
+  const [username, setUsername] = useState("");
+  const [amount, setAmount] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [result, setResult] = useState<TopupResult | null>(null);
+
+  const amountNum = Math.round(Number(amount) || 0);
+  const canSubmit = !!username.trim() && amountNum !== 0 && !busy;
+
+  async function submit() {
+    if (!headers || !canSubmit) return;
+    setBusy(true);
+    setError("");
+    setResult(null);
+    try {
+      const res = await fetch("/api/admin/topup", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify({ username: username.trim(), amount: amountNum }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Cộng tiền thất bại");
+      } else {
+        setResult(data as TopupResult);
+        setAmount("");
+        onDone();
+      }
+    } catch {
+      setError("Lỗi kết nối máy chủ");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="admin-topup">
+      <div className="topup-card">
+        <h3 className="topup-title">💵 Cộng tiền cho tài khoản</h3>
+        <p className="topup-sub">
+          Nhập tên đăng nhập của khách đã có tài khoản, rồi cộng tiền vào ví để test mua hàng.
+          Có thể nhập số âm để trừ tiền.
+        </p>
+
+        <label className="topup-field">
+          <span>Tên đăng nhập</span>
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="vd nguyenvana"
+            autoComplete="off"
+          />
+        </label>
+
+        <label className="topup-field">
+          <span>Số tiền (VND)</span>
+          <input
+            type="number"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="vd 50000"
+          />
+        </label>
+
+        <div className="topup-quick">
+          {QUICK_AMOUNTS.map((a) => (
+            <button
+              key={a}
+              type="button"
+              className="tq-btn"
+              onClick={() => setAmount(String(a))}
+            >
+              +{fmtVnd(a)}
+            </button>
+          ))}
+        </div>
+
+        <div className="topup-preview">
+          Cộng: <b>{amountNum ? fmtVnd(amountNum) : "—"}</b>
+        </div>
+
+        <button className="topup-submit" disabled={!canSubmit} onClick={submit}>
+          {busy ? "Đang xử lý…" : "Cộng tiền"}
+        </button>
+
+        {error && <div className="topup-error">⚠ {error}</div>}
+        {result && (
+          <div className="topup-ok">
+            ✔ Đã cộng {fmtVnd(result.added)} cho <b>{result.username}</b>
+            {result.display_name ? ` (${result.display_name})` : ""}. Số dư mới:{" "}
+            <b>{fmtVnd(result.balance)}</b>
+          </div>
         )}
       </div>
     </div>

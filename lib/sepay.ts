@@ -19,14 +19,27 @@ export function generateDepositCode(): string {
   return `${DEPOSIT_PREFIX}${s}`;
 }
 
+// Kiểm tra cấu hình SePay đã đủ chưa (tránh sinh QR lỗi khi thiếu STK).
+export function sepayConfigured(): boolean {
+  return Boolean(SEPAY_ACCOUNT && SEPAY_BANK);
+}
+
 // URL ảnh QR động của SePay (VietQR). Quét là ra sẵn STK + nội dung + số tiền.
 // Docs: https://qr.sepay.vn/img
 export function buildQrUrl(code: string, amount?: number): string {
+  if (!sepayConfigured()) {
+    throw new Error(
+      "SePay chưa được cấu hình: thiếu NEXT_PUBLIC_SEPAY_ACCOUNT hoặc NEXT_PUBLIC_SEPAY_BANK"
+    );
+  }
   const params = new URLSearchParams({
     acc: SEPAY_ACCOUNT,
     bank: SEPAY_BANK,
     des: code,
+    template: "compact",
   });
   if (amount && amount > 0) params.set("amount", String(amount));
   return `https://qr.sepay.vn/img?${params.toString()}`;
 }
+
+

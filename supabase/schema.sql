@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS customers (
   password_hash TEXT NOT NULL,
   display_name TEXT,
   balance BIGINT NOT NULL DEFAULT 0,
+  is_admin BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -114,8 +115,44 @@ BEGIN
 END;
 $$;
 
+-- ============================================
+-- RPC: admin cộng/trừ tiền ví thủ công (atomic)
+-- Tìm theo username (không phân biệt hoa/thường). p_amount có thể âm để trừ.
+-- Trả về dòng customer sau khi cập nhật; rỗng nếu không tìm thấy username.
+-- ============================================
+CREATE OR REPLACE FUNCTION admin_adjust_balance(
+  p_username TEXT,
+  p_amount BIGINT
+) RETURNS TABLE (id UUID, username TEXT, display_name TEXT, balance BIGINT)
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_id UUID;
+BEGIN
+  SELECT c.id INTO v_id
+  FROM customers c
+  WHERE lower(c.username) = lower(p_username)
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN;  -- không có username này
+  END IF;
+
+  UPDATE customers c
+  SET balance = c.balance + p_amount
+  WHERE c.id = v_id;
+
+  RETURN QUERY
+  SELECT c.id, c.username, c.display_name, c.balance
+  FROM customers c
+  WHERE c.id = v_id;
+END;
+$$;
+
 -- Enable Row Level Security
 ALTER TABLE products ENABLE ROW LEVEL SECURITY;
+
 ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE contact ENABLE ROW LEVEL SECURITY;
 ALTER TABLE customers ENABLE ROW LEVEL SECURITY;
@@ -194,6 +231,14 @@ ALTER TABLE products DROP CONSTRAINT IF EXISTS products_category_check;
 UPDATE products SET category = 'Pet' WHERE category = 'Item hiếm';
 ALTER TABLE products
   ADD CONSTRAINT products_category_check CHECK (category IN ('Seed', 'Gear', 'Pet'));
+
+-- ============================================
+-- MIGRATION: thêm is_admin vào customers (nếu bảng đã tồn tại từ trước)
+-- Set admin cho tài khoản chủ shop.
+-- ============================================
+ALTER TABLE customers
+  ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT false;
+UPDATE customers SET is_admin = true WHERE lower(username) = 'sohaynho01';
 
 
 

@@ -3,6 +3,7 @@ import { supabaseAdmin } from "@/lib/supabase-admin";
 import {
   generateDepositCode,
   buildQrUrl,
+  sepayConfigured,
   SEPAY_BANK,
   SEPAY_ACCOUNT,
   SEPAY_ACCOUNT_NAME,
@@ -17,9 +18,17 @@ export async function POST(request: Request) {
     const customer_id = String(body.customer_id || "");
     const amount = Number(body.amount) || null;
 
+    if (!sepayConfigured()) {
+      return NextResponse.json(
+        { error: "Hệ thống nạp tiền chưa được cấu hình. Vui lòng liên hệ admin." },
+        { status: 503 }
+      );
+    }
+
     if (!customer_id) {
       return NextResponse.json({ error: "Thiếu thông tin tài khoản" }, { status: 400 });
     }
+
     if (amount !== null && amount < 10000) {
       return NextResponse.json({ error: "Số tiền nạp tối thiểu 10.000đ" }, { status: 400 });
     }

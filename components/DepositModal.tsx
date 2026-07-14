@@ -140,8 +140,17 @@ export default function DepositModal({ onClose }: { onClose: () => void }) {
 
             <div className="dep-qr">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={deposit.qr_url} alt="QR chuyển khoản" />
+              <img
+                src={deposit.qr_url}
+                alt="QR chuyển khoản"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                  setError("Không tải được mã QR. Vui lòng chuyển khoản thủ công theo thông tin bên dưới.");
+                }}
+              />
             </div>
+            {error && <div className="auth-error">{error}</div>}
+
 
             <div className="dep-info">
               <div className="row"><span>Ngân hàng</span><b>{deposit.bank}</b></div>
