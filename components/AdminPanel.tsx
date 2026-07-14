@@ -136,12 +136,12 @@ export default function AdminPanel() {
   }
 
   // ---- Duyệt / từ chối lệnh nạp ----
-  async function reviewDeposit(id: string, action: "approve" | "reject") {
+  async function reviewDeposit(id: string, action: "approve" | "reject", amount?: number) {
     if (!headers) return;
     const res = await fetch("/api/admin/deposits", {
       method: "PATCH",
       headers: { ...headers, "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action }),
+      body: JSON.stringify({ id, action, amount }),
     });
     if (res.ok) {
       flash(action === "approve" ? "Đã cộng tiền ✔" : "Đã từ chối");
@@ -450,7 +450,7 @@ function DepositsTab({
   onReview,
 }: {
   deposits: AdminDeposit[];
-  onReview: (id: string, action: "approve" | "reject") => void;
+  onReview: (id: string, action: "approve" | "reject", amount?: number) => void;
 }) {
   const pending = deposits.filter((d) => d.status === "pending");
   const done = deposits.filter((d) => d.status !== "pending");
@@ -489,10 +489,13 @@ function DepositCard({
   onReview,
 }: {
   d: AdminDeposit;
-  onReview: (id: string, action: "approve" | "reject") => void;
+  onReview: (id: string, action: "approve" | "reject", amount?: number) => void;
 }) {
   const st = DST[d.status] || DST.pending;
   const shown = d.received_amount ?? d.amount ?? 0;
+  // Số tiền admin xác nhận thực nhận. Mặc định lấy amount dự kiến (nếu có).
+  const [confirmAmount, setConfirmAmount] = useState(String(d.amount ?? ""));
+  const amountNum = Math.round(Number(confirmAmount) || 0);
   return (
     <div className={`ao-card ${d.status === "pending" ? "hot" : ""}`}>
       <div className="ao-head">
@@ -508,10 +511,26 @@ function DepositCard({
         <span className="ao-amt">{fmtVnd(shown)}</span>
       </div>
       <div className="ao-date">{fmtDate(d.created_at)}</div>
+      {d.status === "pending" && (
+        <label className="ape-field" style={{ marginTop: 8 }}>
+          <span>Số tiền thực nhận (VND)</span>
+          <input
+            type="number"
+            min={0}
+            value={confirmAmount}
+            onChange={(e) => setConfirmAmount(e.target.value)}
+            placeholder="vd 50000"
+          />
+        </label>
+      )}
       <div className="ao-actions">
         {d.status === "pending" && (
           <>
-            <button className="ao-done" onClick={() => onReview(d.id, "approve")}>
+            <button
+              className="ao-done"
+              disabled={amountNum <= 0}
+              onClick={() => onReview(d.id, "approve", amountNum)}
+            >
               ✔ Đã nhận tiền – cộng ví
             </button>
             <button className="ao-cancel" onClick={() => onReview(d.id, "reject")}>
