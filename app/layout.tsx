@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { AuthProvider } from "@/lib/auth-context";
+import AutoSyncDeposits from "@/components/AutoSyncDeposits";
 
 export const metadata: Metadata = {
   title: "shopsohaynho2 | Shop Grow A Garden 2",
@@ -16,7 +17,10 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body>
-        <AuthProvider>{children}</AuthProvider>
+        <AuthProvider>
+          <AutoSyncDeposits />
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

@@ -23,7 +23,29 @@ type CardDeposit = {
 
 const PRESETS = [20000, 50000, 100000, 200000, 500000, 1000000];
 const TELCOS = ["Viettel", "Mobifone", "Vinaphone", "Vietnamobile", "Zing", "Garena", "Gate"];
-const CARD_AMOUNTS = [10000, 20000, 50000, 100000, 200000, 500000];
+
+// Bảng chiết khấu theo mệnh giá (%)
+const CARD_RATES: Record<number, number> = {
+  10000: 0.147,  // 14.7%
+  20000: 0.147,  // 14.7%
+  30000: 0.147,  // 14.7%
+  50000: 0.109,  // 10.9%
+  100000: 0.123, // 12.3%
+  200000: 0.123, // 12.3%
+  300000: 0.123, // 12.3%
+  500000: 0.123, // 12.3%
+  1000000: 0.123, // 12.3%
+};
+
+function getDiscountRate(amount: number): number {
+  return CARD_RATES[amount] ?? 0.25;
+}
+
+function calcFinal(amount: number): number {
+  return Math.floor(amount * (1 - getDiscountRate(amount)));
+}
+
+const CARD_AMOUNTS = [10000, 20000, 30000, 50000, 100000, 200000, 300000, 500000, 1000000];
 
 function fmt(n: number) {
   return n.toLocaleString("vi-VN") + "đ";
@@ -79,7 +101,6 @@ function BankDeposit({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(false);
-  const [notified, setNotified] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
@@ -128,7 +149,6 @@ function BankDeposit({
   function reset() {
     setDeposit(null);
     setDone(false);
-    setNotified(false);
     setError("");
   }
 
@@ -173,7 +193,7 @@ function BankDeposit({
             {busy ? "Đang tạo..." : "Tạo mã nạp"}
           </button>
           <p className="hint">
-            Tối thiểu <b>10.000đ</b>. Sau khi chuyển khoản, bấm xác nhận để admin duyệt.
+            Tối thiểu <b>10.000đ</b>. Sau khi chuyển khoản đúng nội dung, tiền tự động vào ví trong 1-2 phút.
           </p>
         </>
       ) : (
@@ -182,7 +202,7 @@ function BankDeposit({
             <div className="ico">📲</div>
             <div>
               <h3>Quét mã để chuyển khoản</h3>
-              <div className="rar">Chuyển xong bấm xác nhận để admin duyệt</div>
+              <div className="rar">Tiền tự động vào ví sau 1-2 phút</div>
             </div>
           </div>
 
@@ -207,17 +227,11 @@ function BankDeposit({
             <div className="row hl"><span>Nội dung CK</span><b>{deposit.code}</b></div>
           </div>
 
-          {notified ? (
-            <div className="dep-wait">
-              <span className="spin" /> Đã báo admin. Đang chờ duyệt… (tự động cập nhật khi tiền vào ví)
-            </div>
-          ) : (
-            <button className="cbtn" onClick={() => setNotified(true)}>
-              ✓ Tôi đã chuyển khoản
-            </button>
-          )}
+          <div className="dep-wait">
+            <span className="spin" /> Tiền tự động vào ví sau 1-2 phút
+          </div>
           <p className="hint">
-            Nhập <b>đúng nội dung CK</b> ở trên. Quét QR sẽ tự điền sẵn. Tiền vào ví sau khi admin duyệt.
+            Nhập <b>đúng nội dung CK</b> ở trên. Quét QR sẽ tự điền sẵn. Tiền vào ví <b>tự động</b> sau 1-2 phút.
           </p>
           <button className="dep-cancel" onClick={reset}>Huỷ / tạo mã khác</button>
         </>
@@ -243,6 +257,10 @@ function CardDepositForm({
   const [card, setCard] = useState<CardDeposit | null>(null);
   const [done, setDone] = useState(false);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const discountRate = getDiscountRate(amount);
+  const discountPercent = Math.round(discountRate * 100);
+  const finalAmount = calcFinal(amount);
 
   useEffect(() => {
     if (!card || done) return;
@@ -379,6 +397,22 @@ function CardDepositForm({
               value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
             />
+          </div>
+
+          {/* Hiển thị chiết khấu */}
+          <div className="card-discount-preview">
+            <div className="discount-row">
+              <span>Mệnh giá thẻ:</span>
+              <b>{fmt(amount)}</b>
+            </div>
+            <div className="discount-row">
+              <span>Chiết khấu:</span>
+              <b style={{ color: "#e53935" }}>-{discountPercent}%</b>
+            </div>
+            <div className="discount-row final">
+              <span>Nhận được:</span>
+              <b style={{ color: "#4caf50", fontSize: 18 }}>{fmt(finalAmount)}</b>
+            </div>
           </div>
 
           <div className="qty">

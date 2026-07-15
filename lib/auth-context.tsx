@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createClient } from "@supabase/supabase-js";
 
 export type User = {
   id: string;
@@ -28,7 +29,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Khôi phục session từ localStorage khi load
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -38,6 +38,45 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     setLoading(false);
   }, []);
+
+  // Realtime subscription - tự động cập nhật số dư khi thay đổi
+  useEffect(() => {
+    if (!user) return;
+
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseKey) return;
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const channel = supabase
+      .channel(`balance:${user.id}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "customers",
+          filter: `id=eq.${user.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as { balance?: number; is_admin?: boolean };
+          if (updated.balance !== undefined) {
+            setUser((prev) => {
+              if (!prev) return prev;
+              const next = { ...prev, balance: updated.balance, is_admin: updated.is_admin ?? prev.is_admin };
+              localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+              return next;
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
 
   function persist(u: User) {
     setUser(u);
@@ -71,7 +110,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(STORAGE_KEY);
   }
 
-  // Cập nhật lại số dư từ server (sau khi nạp tiền)
   async function refreshBalance() {
     if (!user) return;
     try {

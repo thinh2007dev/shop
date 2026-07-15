@@ -7,6 +7,7 @@ import { extractCode } from "@/lib/sepay";
 // ==== CẤU HÌNH — set trong .env ====
 // BYTEMART_TOKEN: token cấp bởi bytemart.io.vn (đặt trong .env, KHÔNG hardcode)
 const BYTEMART_TOKEN = process.env.BYTEMART_TOKEN || "";
+const BYTEMART_CLIENT_URL = "https://api.bytemart.io.vn/historyapimbbank";
 
 export function bytemartConfigured(): boolean {
   return Boolean(BYTEMART_TOKEN);
@@ -36,7 +37,7 @@ interface BytemartResponse {
 export async function fetchTransactions(): Promise<BytemartTran[]> {
   if (!BYTEMART_TOKEN) return [];
 
-  const url = `https://api.bytemart.io.vn/historyapimbbank/${encodeURIComponent(BYTEMART_TOKEN)}`;
+  const url = `${BYTEMART_CLIENT_URL}/${encodeURIComponent(BYTEMART_TOKEN)}`;
   try {
     const res = await fetch(url, { cache: "no-store" });
     if (!res.ok) return [];

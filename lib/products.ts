@@ -77,15 +77,20 @@ export const FALLBACK_PRODUCTS: Product[] = [
   { name: "Sun Bloom", emoji: "🌻", unit: "1", price_bank: "25K", price_card: "35K", stock: 71, sold: 168, hot: false, category: "Seed", rarity: "epic" },
   { name: "Star Fruit", emoji: "⭐", unit: "1", price_bank: "20K", price_card: "30K", stock: 88, sold: 210, hot: false, category: "Seed", rarity: "rare" },
   { name: "Eclipse Bloom", emoji: "🌑", unit: "1", price_bank: "45K", price_card: "60K", stock: 34, sold: 132, hot: true, category: "Seed", rarity: "legendary" },
+  { name: "Venus Fly Trap", emoji: "🪴", unit: "1", price_bank: "50K", price_card: "70K", stock: 30, sold: 0, hot: true, category: "Seed", rarity: "legendary" },
+  { name: "Hypno Bloom", emoji: "🌀", unit: "1", price_bank: "45K", price_card: "65K", stock: 25, sold: 0, hot: true, category: "Seed", rarity: "legendary" },
+  { name: "Venom Spitter", emoji: "🌿", unit: "1", price_bank: "40K", price_card: "55K", stock: 35, sold: 0, hot: false, category: "Seed", rarity: "legendary" },
   // Gear / Dụng cụ
   { name: "Super Watering Can", emoji: "🫖", unit: "1", price_bank: "10K", price_card: "20K", stock: 80, sold: 305, hot: false, category: "Gear", rarity: "rare" },
   { name: "Super Sprinkler", emoji: "⛲", unit: "1", price_bank: "10K", price_card: "20K", stock: 74, sold: 277, hot: false, category: "Gear", rarity: "rare" },
+  { name: "Legendary Sprinkler", emoji: "💧", unit: "1", price_bank: "25K", price_card: "35K", stock: 50, sold: 0, hot: false, category: "Gear", rarity: "legendary" },
   // Pet / Thú cưng
   { name: "Raccoon", emoji: "🦝", unit: "1", price_bank: "40K", price_card: "55K", stock: 42, sold: 156, hot: false, category: "Pet", rarity: "epic" },
   { name: "Black Dragon", emoji: "🐉", unit: "1", price_bank: "80K", price_card: "100K", stock: 18, sold: 98, hot: true, category: "Pet", rarity: "legendary" },
   { name: "Ice Serpent", emoji: "🐍", unit: "1", price_bank: "60K", price_card: "80K", stock: 25, sold: 112, hot: false, category: "Pet", rarity: "legendary" },
   { name: "Golden Dragonfly", emoji: "🪰", unit: "1", price_bank: "55K", price_card: "70K", stock: 30, sold: 87, hot: false, category: "Pet", rarity: "epic" },
   { name: "Unicorn", emoji: "🦄", unit: "1", price_bank: "90K", price_card: "120K", stock: 12, sold: 64, hot: true, category: "Pet", rarity: "legendary" },
+  { name: "Firefly", emoji: "✨", unit: "1", price_bank: "60K", price_card: "80K", stock: 40, sold: 0, hot: false, category: "Pet", rarity: "legendary" },
 ];
 
 export const FALLBACK_CONTACT = {

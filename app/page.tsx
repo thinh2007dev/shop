@@ -42,7 +42,6 @@ export default function Home() {
     <AuthGate>
       <Header active={tab} onNav={setTab} />
 
-
       {tab === "home" && (
         <>
           <HomeBanner onNav={setTab} />
@@ -55,7 +54,6 @@ export default function Home() {
           <Catalog />
         </div>
       )}
-
 
       {tab === "deposit" && (
         <div className="wrap">
@@ -76,7 +74,6 @@ export default function Home() {
       )}
 
       <Footer />
-
     </AuthGate>
   );
 }
